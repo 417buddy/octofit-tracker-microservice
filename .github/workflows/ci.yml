@@ -39,18 +39,24 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install dependencies (with retries)
+      - name: Install dependencies (with retries and captured log)
         run: |
-          set -e
+          set -euo pipefail
+          # Ensure we capture stdout/stderr of npm into npm-ci.log for artifact upload
           for i in 1 2 3; do
             echo "Attempt $i: npm ci"
-            if npm ci --silent; then
+            # use pipefail so we can capture exit code of npm even with tee
+            npm ci --silent 2>&1 | tee npm-ci.log
+            rc=${PIPESTATUS[0]:-0}
+            if [ "$rc" -eq 0 ]; then
               break
             fi
+            echo "npm ci failed with exit code $rc, retrying in $((i * 5))s..."
             sleep $((i * 5))
             if [ $i -eq 3 ]; then
-              echo "npm ci failed after 3 attempts"
-              exit 1
+              echo "npm ci failed after 3 attempts (exit code $rc)"
+              # keep the log for debugging and fail the job
+              exit $rc
             fi
           done
 
