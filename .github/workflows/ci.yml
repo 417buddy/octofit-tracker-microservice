@@ -60,6 +60,16 @@ jobs:
             fi
           done
 
+      - name: Show npm-ci.log (head)
+        if: always()
+        run: |
+          echo "---- npm-ci.log head ----"
+          if [ -f npm-ci.log ]; then
+            head -n 200 npm-ci.log || true
+          else
+            echo "npm-ci.log not found"
+          fi
+
       - name: Upload npm install log (artifact)
         if: always()
         uses: actions/upload-artifact@v4
