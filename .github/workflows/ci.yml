@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: Build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,35 +20,43 @@ jobs:
           # fetch full history in case tools need tags or history
           fetch-depth: 0
 
+      - name: Debug runner info
+        run: |
+          echo "Runner: $(hostname)"
+          echo "== System information =="
+          uname -a || true
+          echo "== Node/npm =="
+          node -v || true
+          npm -v || true
+          echo "== Repo listing =="
+          ls -la || true
+          cat /etc/os-release || true
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-      - name: Environment debug
-        run: |
-          echo "== System information =="
-          uname -a || true
-          node -v || true
-          npm -v || true
-          echo "== Repo listing =="
-          ls -la || true
-
-      - name: Install dependencies (with retry)
+      - name: Install dependencies (with retries)
         run: |
           set -e
-          n=0
-          until [ "$n" -ge 3 ]
-          do
-            npm ci && break
-            n=$((n+1))
-            echo "npm ci failed, retrying ($n/3)..."
-            sleep 5
+          for i in 1 2 3; do
+            echo "Attempt $i: npm ci"
+            if npm ci --silent; then
+              break
+            fi
+            sleep $((i * 5))
+            if [ $i -eq 3 ]; then
+              echo "npm ci failed after 3 attempts"
+              exit 1
+            fi
           done
 
-      - name: Run lint (non-blocking temporarily)
-        run: npm run lint --silent || true
+      - name: Run lint (non-blocking)
+        run: |
+          npm run lint || echo "Lint failed but continuing (temporary guard)"
 
       - name: Run tests
         run: npm test --silent
