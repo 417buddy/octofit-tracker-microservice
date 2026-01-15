@@ -54,6 +54,15 @@ jobs:
             fi
           done
 
+      - name: Upload npm install log (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-ci-log
+          path: |
+            npm-ci.log
+            npm-debug.log
+
       - name: Run lint (non-blocking)
         run: |
           npm run lint || echo "Lint failed but continuing (temporary guard)"
